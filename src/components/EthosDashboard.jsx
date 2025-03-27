@@ -5,6 +5,23 @@ const EthosDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [activeFilter, setActiveFilter] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Toggle theme function
+  const toggleTheme = () => {
+    setDarkMode(!darkMode);
+  };
+
+  // Score filter ranges with updated labels
+  const scoreRanges = [
+    { min: 0, max: 799, label: 'Untrusted', color: 'bg-red-800' },
+    { min: 800, max: 1199, label: 'Questionable', color: 'bg-yellow-800' },
+    { min: 1200, max: 1599, label: 'Neutral', color: 'bg-gray-400' },
+    { min: 1600, max: 1999, label: 'Reputable', color: 'bg-blue-800' },
+    { min: 2000, max: 2800, label: 'Exemplary', color: 'bg-green-800' }
+  ];
 
   // Function to get color based on score
   const getScoreColor = (score) => {
@@ -13,6 +30,20 @@ const EthosDashboard = () => {
     if (score >= 1200 && score <= 1599) return 'bg-gray-400 text-black';
     if (score >= 800 && score <= 1199) return 'bg-yellow-800 text-white';
     return 'bg-red-800 text-white';
+  };
+
+  // Toggle filter function
+  const toggleFilter = (index) => {
+    if (activeFilter === index) {
+      setActiveFilter(null); // Deactivate filter if already active
+    } else {
+      setActiveFilter(index); // Activate new filter
+    }
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
   };
 
   // Load user IDs from config file
@@ -80,36 +111,121 @@ const EthosDashboard = () => {
     }
   };
 
+  // Filter users based on score range and search query
+  const filteredUsers = users
+    .filter(user => {
+      // Apply score filter if active
+      if (activeFilter !== null) {
+        const range = scoreRanges[activeFilter];
+        return user.score >= range.min && user.score <= range.max;
+      }
+      return true;
+    })
+    .filter(user => {
+      // Apply search filter if there's a query
+      if (searchQuery.trim() === '') return true;
+      
+      const query = searchQuery.toLowerCase();
+      const name = (user.name || '').toLowerCase();
+      const username = (user.username || '').toLowerCase();
+      
+      return name.includes(query) || username.includes(query);
+    })
+    // Sort users by score in descending order
+    .sort((a, b) => b.score - a.score);
+
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
+    <div className={`min-h-screen p-4 transition-colors duration-200 ${darkMode ? 'bg-[#232320]' : 'bg-[#C1C0B6]'}`}>
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-center">Gems on Ethos</h1>
-        
-        {/* Color legend */}
-        <div className="mb-6 grid grid-cols-5 gap-2 text-xs md:text-sm">
-          <div className="bg-red-800 text-white p-2 rounded text-center">0-799</div>
-          <div className="bg-yellow-800 text-white p-2 rounded text-center">800-1199</div>
-          <div className="bg-gray-400 text-black p-2 rounded text-center">1200-1599</div>
-          <div className="bg-blue-800 text-white p-2 rounded text-center">1699-1999</div>
-          <div className="bg-green-800 text-white p-2 rounded text-center">2000-2800</div>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-[#C0BFB5]' : 'text-[#1F2126]'}`}>
+            Gems on Ethos
+          </h1>
+          <button 
+            onClick={toggleTheme} 
+            className={`px-3 py-1 rounded-md ${darkMode ? 'bg-[#2D2D29] text-[#C0BFB5]' : 'bg-[#CBCBC2] text-[#1F2126]'}`}
+          >
+            {darkMode ? '☀️ Light' : '🌙 Dark'}
+          </button>
+        </div>
+
+        {/* Search bar */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search users by name or username..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className={`w-full p-2 rounded-md ${
+              darkMode 
+                ? 'bg-[#2D2D29] text-[#C0BFB5] border-[#8D8D85] placeholder-[#8B8B89]' 
+                : 'bg-[#CBCBC2] text-[#1F2126] border-[#7E7F7C] placeholder-[#5B5D5D]'
+            } border`}
+          />
         </div>
         
-        {/* Loading and error states */}
-        {loading && <p className="text-center p-4 bg-white rounded shadow">Loading user data...</p>}
-        {error && <p className="text-center text-red-500 p-4 bg-white rounded shadow">{error}</p>}
+        {/* Color legend with updated labels */}
+        <div className="mb-6 grid grid-cols-5 gap-2 text-xs md:text-sm">
+          {scoreRanges.map((range, index) => (
+            <button
+              key={index}
+              onClick={() => toggleFilter(index)}
+              className={`${range.color} ${range.color === 'bg-gray-400' ? 'text-black' : 'text-white'} p-2 rounded text-center transition-all duration-200 ${
+                activeFilter === index ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-500' : ''
+              }`}
+            >
+              {range.label}
+              {activeFilter === index && ' ✓'}
+            </button>
+          ))}
+        </div>
         
-        {/* Ranked user list */}
+        {/* Filter indicator with updated labels */}
+        {(activeFilter !== null || searchQuery) && (
+          <div className={`mb-4 flex justify-between items-center ${darkMode ? 'text-[#8D8D85]' : 'text-[#5B5D5D]'}`}>
+            <div>
+              {activeFilter !== null && (
+                <span>Filtered by: {scoreRanges[activeFilter].label} ({scoreRanges[activeFilter].min}-{scoreRanges[activeFilter].max})</span>
+              )}
+              {searchQuery && activeFilter !== null && ' | '}
+              {searchQuery && (
+                <span>Search: "{searchQuery}"</span>
+              )}
+            </div>
+            <button 
+              onClick={() => {
+                setActiveFilter(null);
+                setSearchQuery('');
+              }}
+              className={`text-sm px-2 py-1 rounded ${
+                darkMode ? 'bg-[#2D2D29] text-[#C0BFB5]' : 'bg-[#CBCBC2] text-[#1F2126]'
+              }`}
+            >
+              Clear Filters
+            </button>
+          </div>
+        )}
+        
+        {/* Loading and error states */}
+        {loading && <p className={`text-center p-4 rounded shadow ${darkMode ? 'bg-[#2D2D29] text-[#C0BFB5]' : 'bg-[#CBCBC2] text-[#1F2126]'}`}>Loading user data...</p>}
+        {error && <p className={`text-center text-red-500 p-4 rounded shadow ${darkMode ? 'bg-[#2D2D29]' : 'bg-[#CBCBC2]'}`}>{error}</p>}
+        
+        {/* Results count */}
+        {!loading && !error && (
+          <p className={`mb-4 ${darkMode ? 'text-[#8D8D85]' : 'text-[#5B5D5D]'}`}>
+            {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} found
+          </p>
+        )}
+        
+        {/* Ranked user list - now uses filteredUsers */}
         <div className="flex flex-col space-y-3">
-          {users
-            // Sort users by score in descending order
-            .sort((a, b) => b.score - a.score)
-            .map((user, index) => (
+          {filteredUsers.map((user, index) => (
             <div 
               key={user.userkey} 
               className={`rounded-lg shadow-md overflow-hidden ${getScoreColor(user.score)} flex items-center`}
             >
               {/* Rank number */}
-              <div className="bg-black bg-opacity-20 p-3 h-full flex items-center justify-center">
+              <div className="p-3 h-full flex items-center justify-center">
                 <span className="font-bold text-xl w-8 text-center">{index + 1}</span>
               </div>
               
@@ -122,7 +238,7 @@ const EthosDashboard = () => {
                     className="w-10 h-10 rounded-full mr-3"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-300 mr-3 flex items-center justify-center text-gray-800">
+                  <div className={`w-10 h-10 rounded-full mr-3 flex items-center justify-center ${darkMode ? 'bg-[#2D2D29] text-[#8D8D85]' : 'bg-[#CBCBC2] text-[#5B5D5D]'}`}>
                     <span>?</span>
                   </div>
                 )}
@@ -143,9 +259,13 @@ const EthosDashboard = () => {
               </div>
             </div>
           ))}
+          
+          {!loading && filteredUsers.length === 0 && (
+            <p className={`text-center p-4 rounded shadow ${darkMode ? 'bg-[#2D2D29] text-[#C0BFB5]' : 'bg-[#CBCBC2] text-[#1F2126]'}`}>
+              No users found matching your criteria.
+            </p>
+          )}
         </div>
-        
-
       </div>
     </div>
   );
