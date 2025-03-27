@@ -83,7 +83,7 @@ const EthosDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-center">GEMS on Ethos</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">Gems on Ethos</h1>
         
         {/* Color legend */}
         <div className="mb-6 grid grid-cols-5 gap-2 text-xs md:text-sm">
