@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const EthosDashboard = () => {
   const [users, setUsers] = useState([]);
@@ -8,6 +8,7 @@ const EthosDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
   // Toggle theme function
   const toggleTheme = () => {
@@ -41,10 +42,20 @@ const EthosDashboard = () => {
     }
   };
 
-  // Handle search input change
+  // Handle search input change with debounce
   const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
+    const value = e.target.value;
+    setSearchQuery(value);
   };
+
+  // Debounce search query to improve performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms delay
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Load user IDs from config file
   useEffect(() => {
@@ -100,7 +111,24 @@ const EthosDashboard = () => {
       
       const data = await response.json();
       if (data.ok && data.data) {
-        setUsers(data.data);
+        // Deduplicate users by profileId before setting state
+        const uniqueUsers = [];
+        const seenProfileIds = new Set();
+        
+        data.data.forEach(user => {
+          if (user.profileId && !seenProfileIds.has(user.profileId)) {
+            seenProfileIds.add(user.profileId);
+            uniqueUsers.push(user);
+          } else if (!user.profileId) {
+            // Include users without profileId but use userkey for deduplication
+            if (!seenProfileIds.has(user.userkey)) {
+              seenProfileIds.add(user.userkey);
+              uniqueUsers.push(user);
+            }
+          }
+        });
+        
+        setUsers(uniqueUsers);
       } else {
         throw new Error('Invalid response data');
       }
@@ -111,7 +139,7 @@ const EthosDashboard = () => {
     }
   };
 
-  // Filter users based on score range and search query
+  // Filter users based on score range and search query - with additional deduplication
   const filteredUsers = users
     .filter(user => {
       // Apply score filter if active
@@ -123,15 +151,17 @@ const EthosDashboard = () => {
     })
     .filter(user => {
       // Apply search filter if there's a query
-      if (searchQuery.trim() === '') return true;
+      if (!debouncedSearchQuery || debouncedSearchQuery.trim() === '') return true;
       
-      const query = searchQuery.toLowerCase();
-      const name = (user.name || '').toLowerCase();
+      const query = debouncedSearchQuery.toLowerCase().trim();
+      
+      // Only search by username field
       const username = (user.username || '').toLowerCase();
       
-      return name.includes(query) || username.includes(query);
+      // Check if username contains the query
+      return username.includes(query);
     })
-    // Sort users by score in descending order
+    // Sort users by score in descending order - this maintains the order even after filtering
     .sort((a, b) => b.score - a.score);
 
   return (
@@ -150,10 +180,10 @@ const EthosDashboard = () => {
         </div>
 
         {/* Search bar */}
-        <div className="mb-4">
+        <div className="mb-4 relative">
           <input
             type="text"
-            placeholder="Search users by name or username..."
+            placeholder="Search users by username..."
             value={searchQuery}
             onChange={handleSearchChange}
             className={`w-full p-2 rounded-md ${
@@ -162,6 +192,17 @@ const EthosDashboard = () => {
                 : 'bg-[#CBCBC2] text-[#1F2126] border-[#7E7F7C] placeholder-[#5B5D5D]'
             } border`}
           />
+          {searchQuery && (
+            <button 
+              className={`absolute right-2 top-1/2 transform -translate-y-1/2 ${
+                darkMode ? 'text-[#8D8D85]' : 'text-[#5B5D5D]'
+              }`}
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+            >
+              ✕
+            </button>
+          )}
         </div>
         
         {/* Color legend with updated labels */}
@@ -181,21 +222,22 @@ const EthosDashboard = () => {
         </div>
         
         {/* Filter indicator with updated labels */}
-        {(activeFilter !== null || searchQuery) && (
+        {(activeFilter !== null || debouncedSearchQuery) && (
           <div className={`mb-4 flex justify-between items-center ${darkMode ? 'text-[#8D8D85]' : 'text-[#5B5D5D]'}`}>
             <div>
               {activeFilter !== null && (
                 <span>Filtered by: {scoreRanges[activeFilter].label} ({scoreRanges[activeFilter].min}-{scoreRanges[activeFilter].max})</span>
               )}
-              {searchQuery && activeFilter !== null && ' | '}
-              {searchQuery && (
-                <span>Search: "{searchQuery}"</span>
+              {debouncedSearchQuery && activeFilter !== null && ' | '}
+              {debouncedSearchQuery && (
+                <span>Search: "{debouncedSearchQuery}"</span>
               )}
             </div>
             <button 
               onClick={() => {
                 setActiveFilter(null);
                 setSearchQuery('');
+                setDebouncedSearchQuery('');
               }}
               className={`text-sm px-2 py-1 rounded ${
                 darkMode ? 'bg-[#2D2D29] text-[#C0BFB5]' : 'bg-[#CBCBC2] text-[#1F2126]'
@@ -221,7 +263,7 @@ const EthosDashboard = () => {
         <div className="flex flex-col space-y-3">
           {filteredUsers.map((user, index) => (
             <div 
-              key={user.userkey} 
+              key={`${user.profileId || user.userkey}-${index}`} 
               className={`rounded-lg shadow-md overflow-hidden ${getScoreColor(user.score)} flex items-center`}
             >
               {/* Rank number */}
