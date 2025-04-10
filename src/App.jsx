@@ -1,10 +1,13 @@
 import EthosDashboard from './components/EthosDashboard';
+import AnalyticsWrapper from './components/AnalyticsWrapper';
 
 function App() {
   return (
-    <div className="App">
-      <EthosDashboard />
-    </div>
+    <AnalyticsWrapper>
+      <div className="App">
+        <EthosDashboard />
+      </div>
+    </AnalyticsWrapper>
   );
 }
 
