@@ -15,22 +15,23 @@ const EthosDashboard = () => {
     setDarkMode(!darkMode);
   };
 
-  // Score filter ranges with updated labels
+  // Score filter ranges with updated labels and text colors
   const scoreRanges = [
-    { min: 0, max: 799, label: 'Untrusted', color: 'bg-red-800' },
-    { min: 800, max: 1199, label: 'Questionable', color: 'bg-yellow-800' },
-    { min: 1200, max: 1599, label: 'Neutral', color: 'bg-gray-400' },
-    { min: 1600, max: 1999, label: 'Reputable', color: 'bg-blue-800' },
-    { min: 2000, max: 2800, label: 'Exemplary', color: 'bg-green-800' }
+    { min: 0, max: 799, label: 'Untrusted', color: 'bg-red-800', textColor: 'text-white' },
+    { min: 800, max: 1199, label: 'Questionable', color: 'bg-yellow-800', textColor: 'text-white' },
+    { min: 1200, max: 1599, label: 'Neutral', color: 'bg-gray-400', textColor: 'text-black' },
+    { min: 1600, max: 1799, label: 'Reputable I', color: 'bg-blue-800', textColor: 'text-white' },
+    { min: 1800, max: 1999, label: 'Reputable II', color: 'bg-blue-800', textColor: 'text-white' },
+    { min: 2000, max: 2199, label: 'Exemplary I', color: 'bg-green-800', textColor: 'text-white' },
+    { min: 2200, max: 2399, label: 'Exemplary II', color: 'bg-green-800', textColor: 'text-white' },
+    { min: 2400, max: 2599, label: 'Revered I', color: 'bg-purple-800', textColor: 'text-white' },
+    { min: 2600, max: 2800, label: 'Revered II', color: 'bg-purple-800', textColor: 'text-white' }
   ];
 
-  // Function to get color based on score
-  const getScoreColor = (score) => {
-    if (score >= 2000 && score <= 2800) return 'bg-green-800 text-white';
-    if (score >= 1600 && score <= 1999) return 'bg-blue-800 text-white';
-    if (score >= 1200 && score <= 1599) return 'bg-gray-400 text-black';
-    if (score >= 800 && score <= 1199) return 'bg-yellow-800 text-white';
-    return 'bg-red-800 text-white';
+  // Function to find score range - replaces getScoreColor
+  const getScoreRange = (score) => {
+    return scoreRanges.find(range => score >= range.min && score <= range.max) || 
+           { color: 'bg-red-800', textColor: 'text-white' }; // Default if no range matches
   };
 
   // Toggle filter function
@@ -261,46 +262,49 @@ const EthosDashboard = () => {
         
         {/* Ranked user list - now uses filteredUsers */}
         <div className="flex flex-col space-y-3">
-          {filteredUsers.map((user, index) => (
-            <div 
-              key={`${user.profileId || user.userkey}-${index}`} 
-              className={`rounded-lg shadow-md overflow-hidden ${getScoreColor(user.score)} flex items-center`}
-            >
-              {/* Rank number */}
-              <div className="p-3 h-full flex items-center justify-center">
-                <span className="font-bold text-xl w-8 text-center">{index + 1}</span>
-              </div>
-              
-              <div className="p-3 flex-grow flex items-center">
-                {/* Avatar */}
-                {user.avatar ? (
-                  <img 
-                    src={user.avatar} 
-                    alt={user.name || 'User'} 
-                    className="w-10 h-10 rounded-full mr-3"
-                  />
-                ) : (
-                  <div className={`w-10 h-10 rounded-full mr-3 flex items-center justify-center ${darkMode ? 'bg-[#2D2D29] text-[#8D8D85]' : 'bg-[#CBCBC2] text-[#5B5D5D]'}`}>
-                    <span>?</span>
+          {filteredUsers.map((user, index) => {
+            const userScoreRange = getScoreRange(user.score);
+            return (
+              <div 
+                key={`${user.profileId || user.userkey}-${index}`} 
+                className={`rounded-lg shadow-md overflow-hidden ${userScoreRange.color} ${userScoreRange.textColor} flex items-center`}
+              >
+                {/* Rank number */}
+                <div className="p-3 h-full flex items-center justify-center">
+                  <span className="font-bold text-xl w-8 text-center">{index + 1}</span>
+                </div>
+                
+                <div className="p-3 flex-grow flex items-center">
+                  {/* Avatar */}
+                  {user.avatar ? (
+                    <img 
+                      src={user.avatar} 
+                      alt={user.name || 'User'} 
+                      className="w-10 h-10 rounded-full mr-3"
+                    />
+                  ) : (
+                    <div className={`w-10 h-10 rounded-full mr-3 flex items-center justify-center ${darkMode ? 'bg-[#2D2D29] text-[#8D8D85]' : 'bg-[#CBCBC2] text-[#5B5D5D]'}`}>
+                      <span>?</span>
+                    </div>
+                  )}
+                  
+                  {/* User info */}
+                  <div className="mr-4 flex-grow">
+                    <h3 className="font-bold">{user.name || 'Anonymous User'}</h3>
+                    <p className="text-sm opacity-80">
+                      {user.username ? `@${user.username}` : 'No username'}
+                    </p>
                   </div>
-                )}
-                
-                {/* User info */}
-                <div className="mr-4 flex-grow">
-                  <h3 className="font-bold">{user.name || 'Anonymous User'}</h3>
-                  <p className="text-sm opacity-80">
-                    {user.username ? `@${user.username}` : 'No username'}
-                  </p>
-                </div>
-                
-                {/* Score */}
-                <div className="text-right">
-                  <span className="font-bold text-xl">{user.score}</span>
-                  <div className="text-xs opacity-80">Multiplier: {user.scoreXpMultiplier}x</div>
+                  
+                  {/* Score */}
+                  <div className="text-right">
+                    <span className="font-bold text-xl">{user.score}</span>
+                    <div className="text-xs opacity-80">Multiplier: {user.scoreXpMultiplier}x</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {!loading && filteredUsers.length === 0 && (
             <p className={`text-center p-4 rounded shadow ${darkMode ? 'bg-[#2D2D29] text-[#C0BFB5]' : 'bg-[#CBCBC2] text-[#1F2126]'}`}>
